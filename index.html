@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="de">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10151e">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10151e"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <title>Essens-, Kosten- & Nährwertplaner</title>
-<script src="https://google.com" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#65738a;--border:#dce3ee;--primary:#4f7cff;--danger:#e05252;--green:#13a477;--orange:#f0a33a;--tablehead:#edf2f9;--hover:#f5f8ff;--input:#fff;--shadow:0 5px 20px rgba(20,35,65,.06)}
 [data-theme="dark"]{--bg:#10151e;--card:#1a2230;--text:#e8edf6;--muted:#9eacc1;--border:#303b4e;--primary:#7595ff;--danger:#ff6b6b;--green:#34c99a;--orange:#ffbd61;--tablehead:#222d3d;--hover:#222c3b;--input:#141c28;--shadow:0 5px 20px rgba(0,0,0,.2)}
@@ -61,6 +61,20 @@ tr.active-row td{background:color-mix(in srgb,var(--green) 8%,var(--card))}
 .ing-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
 .ing-row select{flex:2;min-width:180px}.ing-row input{flex:1;min-width:100px}
 @media(max-width:600px){body{padding:12px}.card{padding:14px}.toolbar{width:100%}.toolbar button{flex:1}.nutrient-grid{grid-template-columns:1fr}}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.chip{background:var(--tablehead);color:var(--text);border:1px solid var(--border);border-radius:20px;padding:6px 13px;font-size:.84rem;font-weight:600}
+.chip.on{background:var(--green);color:#fff;border-color:var(--green)}
+.chip-label{font-size:.8rem;font-weight:700;color:var(--muted);margin:10px 0 6px}
+.star{background:none;border:0;padding:0 2px;font-size:1.2rem;line-height:1;color:var(--muted);vertical-align:middle;margin-left:6px}
+.star.on{color:var(--orange)}
+#goalsModal{display:none;margin:12px 0;padding:14px;border:2px solid var(--primary);border-radius:12px;background:var(--bg)}
+tr.sum-row td{font-weight:700;background:var(--tablehead)}
+details.menu{position:relative}
+details.menu>summary{list-style:none;cursor:pointer;border:1px solid var(--border);background:var(--tablehead);color:var(--text);border-radius:8px;padding:9px 14px;font-weight:700;user-select:none}
+details.menu>summary::-webkit-details-marker{display:none}
+.menu-items{position:absolute;right:0;top:calc(100% + 6px);z-index:20;min-width:260px;display:flex;flex-direction:column;gap:6px;padding:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+.menu-items button{text-align:left}
+#restoreModal{display:none;margin:0 0 14px;padding:14px;border:2px solid var(--primary);border-radius:12px;background:var(--card)}
 </style>
 </head>
 <body>
@@ -68,20 +82,27 @@ tr.active-row td{background:color-mix(in srgb,var(--green) 8%,var(--card))}
 <header>
 <h1>🛒 Essens-, Kosten- & Nährwertplaner</h1>
 <div class="toolbar">
-<span class="badge" id="syncStatus">Lokal (Nicht verbunden)</span>
-<button class="secondary" id="gdriveBtn" type="button">☁️ Google Drive</button>
-<button class="secondary" id="syncNowBtn" type="button">🔄 Sync</button>
+<span class="badge" id="syncStatus">Lokal (nicht verbunden)</span>
+<button class="secondary" id="gdriveBtn" type="button">☁️ Mit Google verbinden</button>
+<details class="menu"><summary>⋯</summary><div class="menu-items">
 <button class="secondary" id="themeBtn" type="button">🌙 Darkmode</button>
-<button class="secondary" id="exportJsonBtn" type="button">Backup</button>
-<button class="secondary" id="importBtn" type="button">Import</button>
-<button class="secondary" id="csvBtn" type="button">CSV</button>
+<button class="secondary" id="restoreBtn" type="button">🕘 Aus Drive-Sicherung wiederherstellen</button>
+<button class="secondary" id="exportJsonBtn" type="button">💾 Backup-Datei speichern</button>
+<button class="secondary" id="importBtn" type="button">📂 Backup-Datei importieren</button>
+</div></details>
 <input type="file" id="fileInput" accept=".json,application/json" hidden>
 </div>
 </header>
 
+<div id="restoreModal">
+<div class="row-between" style="margin-bottom:6px"><strong>🕘 Sicherungen in Google Drive</strong><button type="button" class="small danger" id="restoreCloseBtn">Schließen</button></div>
+<div class="section-note">Tippe auf einen Tag, um deine Daten auf diesen Stand zurückzusetzen. Die aktuellen Daten werden dabei ersetzt.</div>
+<div class="chips" id="restoreList"></div>
+</div>
+
 <section class="dashboard">
-<div class="stat"><div class="stat-title">Ausgaben ausgewählter Tag</div><div class="stat-value" id="costDay">0,00 €</div><div class="stat-sub">7-Tage-Schnitt: <span id="costWeek">0,00 €</span></div></div>
-<div class="stat green"><div class="stat-title">Ausgaben aktueller Monat</div><div class="stat-value" id="costMonthActual">0,00 €</div><div class="stat-sub"><span id="monthNameLabel">Monat</span> · Hochrechnung 30T: <span id="costMonthProj">0,00 €</span></div></div>
+<div class="stat"><div class="stat-title">Ausgaben ausgewählter Tag</div><div class="stat-value" id="costDay">0,00 €</div><div class="stat-sub">Ø pro Tag (letzte 7 Tage): <span id="costWeek">0,00 €</span></div></div>
+<div class="stat green"><div class="stat-title">Ausgaben aktueller Monat</div><div class="stat-value" id="costMonthActual">0,00 €</div><div class="stat-sub"><span id="monthNameLabel">Monat</span> · Hochrechnung Monat: <span id="costMonthProj">0,00 €</span></div></div>
 <div class="stat orange"><div class="stat-title">Kalorien / ausgewählter Tag</div><div class="stat-value" id="kcalDay">0 kcal</div><div class="stat-sub">Fett: <span id="fatDay">0</span> g · KH: <span id="carbDay">0</span> g</div></div>
 <div class="stat"><div class="stat-title">Eiweiß / Ballaststoffe</div><div class="stat-value" id="proteinDay">0 g Eiweiß</div><div class="stat-sub">Ballaststoffe: <span id="fiberDay">0</span> g · Zucker: <span id="sugarDay">0</span> g</div></div>
 </section>
@@ -94,21 +115,28 @@ tr.active-row td{background:color-mix(in srgb,var(--green) 8%,var(--card))}
 <input type="date" id="selectedDate" style="width:auto">
 <button type="button" class="secondary small" id="nextDayBtn">Folgetag ▶</button>
 <button type="button" class="secondary small" id="toggleCalBtn">🗓️ Monatskalender</button>
+<button type="button" class="secondary small" id="goalsBtn">⚙️ Ziele anpassen</button>
 </div>
 </div>
 <div id="calendarModal">
 <div class="row-between"><strong id="calMonthTitle">Kalender</strong><button type="button" class="small danger" onclick="document.getElementById('calendarModal').style.display='none'">Schließen</button></div>
 <div class="cal-grid" id="calGrid"></div>
 </div>
-<p class="section-note" style="margin-top:8px">Klicke auf <strong>✏️ Ziel</strong> zum Anpassen. Neue Tage übernehmen automatisch den letzten Stand, bleiben aber danach für diesen Tag gespeichert.</p>
+<div id="goalsModal">
+<div class="row-between"><strong>⚙️ Tagesziele</strong><button type="button" class="small danger" id="goalsCloseBtn">Schließen</button></div>
+<form id="goalsForm"><div class="form-grid" id="goalsFields"></div>
+<div class="form-actions"><button type="submit">💾 Ziele speichern</button><button type="button" class="secondary" id="goalsResetBtn">Standardwerte</button></div></form>
+</div>
+<p class="section-note" style="margin-top:8px">Ziele änderst du mit <strong>⚙️ Ziele anpassen</strong> (oder per Klick auf ✏️ an einem Wert). Neue Tage sind leer – mit „Vom Vortag kopieren“ übernimmst du den Vortag.</p>
 <div class="nutrient-grid" id="nutrientOverview"></div>
 <div id="recommendationArea"></div>
 </section>
 
 <div class="tabs">
-<button type="button" class="tab-btn active" data-tab="tabPlan">🍽️ Tagesauswahl (<span id="selectedDateBadge"></span>)</button>
-<button type="button" class="tab-btn" data-tab="tabDishes">🍲 Gerichte verwalten (<span id="dishCount">0</span>)</button>
-<button type="button" class="tab-btn" data-tab="tabProducts">🥫 Produkte verwalten (<span id="prodCount">0</span>)</button>
+<button type="button" class="tab-btn" data-tab="tabProducts">🥫 1. Produkte (<span id="prodCount">0</span>)</button>
+<button type="button" class="tab-btn" data-tab="tabDishes">🍲 2. Gerichte (<span id="dishCount">0</span>)</button>
+<button type="button" class="tab-btn active" data-tab="tabPlan">🍽️ 3. Tagesauswahl (<span id="selectedDateBadge"></span>)</button>
+<button type="button" class="tab-btn" data-tab="tabShop">🛒 Einkaufsliste</button>
 </div>
 
 <section class="card tab-panel" id="tabPlan">
@@ -116,11 +144,12 @@ tr.active-row td{background:color-mix(in srgb,var(--green) 8%,var(--card))}
 <h2 style="margin:0">Was isst du heute?</h2>
 <div class="toolbar">
 <input type="search" id="planSearch" placeholder="Gericht oder Produkt suchen…">
-<select id="planFilter"><option value="all">Alle anzeigen</option><option value="active">Nur heute ausgewählte</option><option value="dish">Nur Gerichte</option><option value="product">Nur Produkte</option></select>
+<select id="planFilter"><option value="all">Alle anzeigen</option><option value="active">Nur heute ausgewählte</option><option value="fav">Nur Favoriten ⭐</option><option value="dish">Nur Gerichte</option><option value="product">Nur Produkte</option></select>
 <button type="button" class="secondary small" id="copyPrevDayBtn">📋 Vom Vortag kopieren</button>
 </div>
 </div>
 <p class="section-note">Wähle per Klick aus, welche Gerichte und Einzelprodukte du an diesem Tag isst. Änderungen gelten nur für das oben gewählte Datum.</p>
+<div id="quickPicks"></div>
 <div class="table-wrap"><table><thead><tr><th>Auswahl</th><th>Typ</th><th>Name</th><th class="num">Portion / Menge</th><th class="num">Kosten</th><th class="num">kcal</th><th class="num">Eiweiß</th><th class="num">KH (Zucker)</th><th class="num">Fett</th></tr></thead><tbody id="planList"></tbody></table></div>
 </section>
 
@@ -144,19 +173,14 @@ tr.active-row td{background:color-mix(in srgb,var(--green) 8%,var(--card))}
 <h2 id="formTitle" style="margin:0">Neues Produkt anlegen</h2>
 <div class="toolbar">
 <span style="font-size:.82rem;color:var(--primary);font-weight:600" id="ocrStatus"></span>
-<button type="button" class="secondary" id="barcodeBtn">🏷️ Barcode scannen</button>
-<button type="button" class="secondary" id="scanBtn">📷 Nährwerte scannen</button>
-<input type="file" id="ocrInput" accept="image/*" capture="environment" hidden>
+<button type="button" id="barcodeBtn">🏷️ Barcode scannen</button>
+</div>
 </div>
 <div id="cameraModal">
-<div class="row-between" style="margin-bottom:8px"><strong>📷 Kamera auf Tabelle / Barcode halten</strong><button type="button" class="small danger" id="closeCamBtn">Schließen</button></div>
-<div class="cam-wrap"><video id="camVideo" autoplay playsinline muted></video><div class="cam-guide"></div></div>
+<div class="row-between" style="margin-bottom:8px"><strong>📷 Barcode in den Rahmen halten</strong><button type="button" class="small danger" id="closeCamBtn">Schließen</button></div>
+<div class="cam-wrap" id="camWrap"><video id="camVideo" autoplay playsinline muted></video><div class="cam-guide"></div></div>
 <div id="liveOcrPreview" style="margin-top:8px;font-size:.85rem;font-weight:600;color:var(--green)">Suche …</div>
-<div class="toolbar" style="margin-top:8px">
-<button type="button" class="small" id="applyOcrBtn" disabled>✅ Erkannte Werte übernehmen</button>
-<button type="button" class="small secondary" id="fallbackPhotoBtn">📁 Foto aus Galerie</button>
-</div>
-</div>
+<div class="toolbar" style="margin-top:8px"><input id="eanManual" inputmode="numeric" placeholder="oder Barcode-Nummer eintippen" style="max-width:260px"><button type="button" class="small" id="eanManualBtn">Suchen</button></div>
 </div>
 <div class="banner" id="editBanner">✏️ Du bearbeitest ein Produkt.</div>
 <form id="productForm">
@@ -165,6 +189,7 @@ tr.active-row td{background:color-mix(in srgb,var(--green) 8%,var(--card))}
 <div class="form-group"><label for="price">Packungspreis (€) *</label><input id="price" type="number" min="0" step="0.001" required placeholder="1,29"></div>
 <div class="form-group"><label for="packSize">Packungsgröße (g/ml) *</label><input id="packSize" type="number" min="0.001" step="any" required placeholder="500"></div>
 <div class="form-group"><label for="dailyAmount">Standard-Portion (g/ml) *</label><input id="dailyAmount" type="number" min="0" step="any" required placeholder="250"></div>
+<div class="form-group"><label for="ean">Barcode (EAN)</label><input id="ean" inputmode="numeric" placeholder="optional"></div>
 </div>
 <div class="subheading">Nährwerte pro 100 g / 100 ml (optional)</div>
 <div class="form-grid" id="prodNutrients"></div>
@@ -174,14 +199,29 @@ tr.active-row td{background:color-mix(in srgb,var(--green) 8%,var(--card))}
 <div class="toolbar" style="margin-bottom:10px"><input type="search" id="prodSearch" placeholder="Produkte durchsuchen…"><select id="sort"><option value="name">Name A–Z</option><option value="cost">Kosten / Portion</option></select></div>
 <div class="table-wrap"><table><thead><tr><th>Produkt</th><th class="num">Standard-Portion</th><th class="num">€/Portion</th><th class="num">kcal</th><th class="num">Eiweiß</th><th class="num">KH (Zucker)</th><th class="num">Fett</th><th>Aktionen</th></tr></thead><tbody id="productList"></tbody></table></div>
 </section>
+
+<section class="card tab-panel" id="tabShop" style="display:none">
+<h2>🛒 Einkaufsliste</h2>
+<p class="section-note">Zählt alle Gerichte und Produkte der Tage im gewählten Zeitraum zusammen (nur Tage mit Einträgen) und zeigt, wie viel du einkaufen musst.</p>
+<div class="toolbar" style="margin-bottom:12px">
+<label for="shopFrom" style="margin:0">Von</label><input type="date" id="shopFrom" style="width:auto">
+<label for="shopTo" style="margin:0">bis</label><input type="date" id="shopTo" style="width:auto">
+<button type="button" class="secondary small" id="shopDayBtn">Gewählter Tag</button>
+<button type="button" class="secondary small" id="shopWeekBtn">7 Tage ab gewähltem Tag</button>
+<button type="button" class="secondary small" id="shopMonthBtn">Ganzer Monat</button>
+<button type="button" class="secondary small" id="shopCopyBtn">📋 Als Text kopieren</button>
+</div>
+<div class="section-note" id="shopSummary"></div>
+<div class="table-wrap"><table><thead><tr><th>Produkt</th><th class="num">Bedarf (g/ml)</th><th class="num">Packungen (Anzahl × Größe)</th><th class="num">Packungspreis</th><th class="num">Kosten (ganze Packungen)</th><th class="num">Kosten (anteilig)</th></tr></thead><tbody id="shopList"></tbody></table></div>
+</section>
 </div>
 <script>
-const DEFAULT_GOOGLE_CLIENT_ID = 'DEINE_CLIENT_ID_://googleusercontent.com';
+const GOOGLE_CLIENT_ID = '509995120187-h85m7hec0fqnglq3fju4gm7h3bg66cbk.apps.googleusercontent.com';
 const DRIVE_FILE_NAME = 'essensplan-sync-v3.json';
 
-const K={P:'mp_products_v3',D:'mp_dishes_v3',L:'mp_daylogs_v3',G:'mp_targets_v3',T:'mp_theme',CID:'mp_gdrive_cid',UPD:'mp_updated_at'};
+const K={P:'mp_products_v3',D:'mp_dishes_v3',L:'mp_daylogs_v3',G:'mp_targets_v3',T:'mp_theme',CID:'mp_gdrive_cid',UPD:'mp_updated_at',F:'mp_favs_v3',DR:'mp_drive_connected',SNAP:'mp_last_snapshot'};
 const NUTRIENTS=[['kcal','Kalorien (kcal)'],['protein','Eiweiß (g)'],['carbs','Kohlenhydrate (g)'],['sugar','davon Zucker (g)'],['fat','Fett (g)'],['satFat','davon gesättigt (g)'],['fiber','Ballaststoffe (g)'],['salt','Salz (g)']];
-const fields=NUTRIENTS.map(x=>x);
+const fields=NUTRIENTS.map(x=>x[0]);
 const $=id=>document.getElementById(id),num=n=>Number(n||0);
 const euro=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(num(n));
 const fmt=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:1}).format(num(n));
@@ -194,80 +234,175 @@ const defaultTargets={kcal:{label:'Kalorien',unit:'kcal',min:2650,max:3050},fat:
 const load=(k,fb)=>{try{const v=JSON.parse(localStorage.getItem(k));if(v!==null)return v}catch{}return structuredClone(fb)};
 const loadTargets=()=>{const s=load(K.G,null),r=structuredClone(defaultTargets);if(s&&typeof s==='object')for(const k of Object.keys(r))if(s[k])Object.assign(r[k],s[k]);return r};
 
-let products=load(K.P,[]),dishes=load(K.D,[]),dayLogs=load(K.L,{}),targets=loadTargets();
+let products=load(K.P,[]),dishes=load(K.D,[]),dayLogs=load(K.L,{}),targets=loadTargets(),favs=load(K.F,[]);
+if(!Array.isArray(favs))favs=[];
 let editingProdId=null,editingDishId=null,updatedAt=Number(localStorage.getItem(K.UPD)||0);
 let gToken=null,tokenClient=null,driveFileId=null,syncTimeout=null;
 const setSync=(msg,ok)=>{const el=$('syncStatus');el.textContent=msg;el.style.borderColor=ok===true?'var(--green)':ok===false?'var(--danger)':'var(--border)'};
 
-function getClientId(){
-  let cid=localStorage.getItem(K.CID)||DEFAULT_GOOGLE_CLIENT_ID;
-  if(!cid||cid.startsWith('DEINE_CLIENT_ID')){
-    cid=prompt('Bitte deine Google Cloud OAuth Client-ID eingeben (endet auf .apps.googleusercontent.com):');
-    if(cid&&cid.trim()){localStorage.setItem(K.CID,cid.trim());return cid.trim()}
-    return null;
-  }
-  return cid;
-}
+const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.appdata';
+const DRIVE_API='https://www.googleapis.com/drive/v3/files';
+const DRIVE_UPLOAD='https://www.googleapis.com/upload/drive/v3/files';
+const SNAP_PREFIX='essensplan-backup-',SNAP_KEEP=7;
+let tokenExpiry=0,refreshTimer=null,needsGesture=false,syncing=false,syncAgain=false,driveReady=false;
+const timeNow=()=>new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+const buildPayload=()=>({updatedAt,products,dishes,dayLogs,targets,favs});
+const updateDriveUi=()=>{$('gdriveBtn').style.display=gToken?'none':''};
 
-function connectGoogleDrive(silent=false){
-  const cid=getClientId();if(!cid)return;
-  if(typeof google==='undefined'||!google.accounts){setSync('Google API lädt noch…');return}
-  if(!tokenClient){
-    tokenClient=google.accounts.oauth2.initTokenClient({
-      client_id:cid,scope:'https://googleapis.com',
-      callback:async resp=>{
-        if(resp.error){setSync('Drive-Anmeldung abgebrochen',false);return}
-        gToken=resp.access_token;setSync('Verbunden – Synchronisiere…');await syncWithDrive();
-      }
-    });
-  }
-  tokenClient.requestAccessToken({prompt:silent?'':'consent'});
+function initTokenClient(){
+  if(tokenClient)return true;
+  if(typeof google==='undefined'||!google.accounts||!google.accounts.oauth2)return false;
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:GOOGLE_CLIENT_ID,scope:DRIVE_SCOPE,callback:onToken,
+    error_callback:err=>{
+      gToken=null;updateDriveUi();
+      needsGesture=!!err&&err.type==='popup_failed_to_open';
+      setSync(needsGesture?'☁️ Tippe irgendwo, um Google zu verbinden':'☁️ Nicht verbunden – lokal gespeichert',false);
+    }
+  });
+  return true;
 }
+function onToken(resp){
+  if(!resp||resp.error||!resp.access_token){gToken=null;updateDriveUi();setSync('☁️ Nicht verbunden – lokal gespeichert',false);return}
+  gToken=resp.access_token;
+  const secs=Number(resp.expires_in)||3600;tokenExpiry=Date.now()+secs*1000;
+  localStorage.setItem(K.DR,'1');needsGesture=false;
+  clearTimeout(refreshTimer);refreshTimer=setTimeout(requestToken,Math.max(60,secs-300)*1000);
+  updateDriveUi();setSync('☁️ Verbunden – synchronisiere…');syncWithDrive();
+}
+function requestToken(){
+  if(!initTokenClient()){setSync('Google lädt noch … gleich nochmal tippen');return}
+  tokenClient.requestAccessToken({prompt:''});
+}
+function autoConnect(){
+  updateDriveUi();
+  if(localStorage.getItem(K.DR)!=='1')return;
+  setSync('☁️ Verbinde mit Google …');
+  let tries=0;
+  const t=setInterval(()=>{
+    if(initTokenClient()){clearInterval(t);requestToken()}
+    else if(++tries>40){clearInterval(t);setSync('☁️ Google nicht erreichbar – lokal gespeichert',false);needsGesture=true}
+  },300);
+}
+$('gdriveBtn').onclick=()=>{needsGesture=false;requestToken()};
+// Falls Chrome die automatische Anmeldung blockiert hat: der nächste Tipp holt sie nach
+document.addEventListener('click',e=>{if(needsGesture&&!e.target.closest('#gdriveBtn')){needsGesture=false;requestToken()}},true);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'||localStorage.getItem(K.DR)!=='1')return;
+  if(!gToken||Date.now()>tokenExpiry-60000){gToken=null;updateDriveUi();requestToken()}
+  else syncWithDrive();
+});
 
 async function driveFetch(url,opts={}){
   opts.headers={...opts.headers,Authorization:'Bearer '+gToken};
   const r=await fetch(url,opts);
-  if(r.status===401){gToken=null;setSync('Sitzung abgelaufen – Bitte Sync klicken',false);throw new Error('Auth')}
+  if(r.status===401){gToken=null;updateDriveUi();setSync('☁️ Sitzung abgelaufen – verbinde neu …',false);requestToken();throw new Error('Auth')}
+  if(!r.ok)throw new Error('HTTP '+r.status);
   return r;
+}
+function syncError(e){
+  if(e.message==='Auth')return;
+  setSync(e.message==='HTTP 403'?'Sync-Fehler 403 – Google Drive API aktiviert?':'Sync-Fehler – lokal gespeichert',false);
 }
 
 async function syncWithDrive(){
   if(!gToken)return;
+  if(syncing){syncAgain=true;return}
+  syncing=true;
   try{
     const q=encodeURIComponent(`name='${DRIVE_FILE_NAME}' and 'appDataFolder' in parents and trashed=false`);
-    const list=await(await driveFetch(`https://googleapis.com{q}&fields=files(id,modifiedTime)`)).json();
+    const list=await(await driveFetch(`${DRIVE_API}?spaces=appDataFolder&q=${q}&fields=files(id,modifiedTime)`)).json();
+    let remote=null;
     if(list.files&&list.files.length){
-      driveFileId=list.files.id;
-      const remote=await(await driveFetch(`https://googleapis.com{driveFileId}?alt=media`)).json();
-      if((remote.updatedAt||0)>updatedAt){
-        products=remote.products||[];dishes=remote.dishes||[];dayLogs=remote.dayLogs||{};
-        if(remote.targets)targets=Object.assign(loadTargets(),remote.targets);
-        updatedAt=remote.updatedAt;saveLocal(false);render();setSync('☁️ Von Drive geladen',true);return;
-      }
+      driveFileId=list.files[0].id;
+      remote=await(await driveFetch(`${DRIVE_API}/${driveFileId}?alt=media`)).json();
     }
-    await pushToDrive();
-  }catch(e){if(e.message!=='Auth')setSync('Sync-Fehler',false)}
+    driveReady=true;
+    const remoteTs=remote?(remote.updatedAt||0):-1;
+    if(remote&&remoteTs>updatedAt){
+      products=remote.products||[];dishes=remote.dishes||[];dayLogs=remote.dayLogs||{};favs=Array.isArray(remote.favs)?remote.favs:[];
+      if(remote.targets)targets=Object.assign(loadTargets(),remote.targets);
+      updatedAt=remoteTs;saveLocal(false);render();setSync('☁️ Aktuell ('+timeNow()+')',true);
+    }else if(!remote||remoteTs<updatedAt){
+      await pushToDrive();
+    }else setSync('☁️ Aktuell ('+timeNow()+')',true);
+    await maybeSnapshot();
+  }catch(e){syncError(e)}
+  finally{syncing=false;if(syncAgain){syncAgain=false;syncWithDrive()}}
 }
 
 async function pushToDrive(){
   if(!gToken)return;
+  if(!driveReady){syncWithDrive();return}
   try{
-    const payload=JSON.stringify({updatedAt,products,dishes,dayLogs,targets});
     const meta={name:DRIVE_FILE_NAME,parents:driveFileId?undefined:['appDataFolder']};
     const form=new FormData();
     form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
-    form.append('file',new Blob([payload],{type:'application/json'}));
-    const url=driveFileId?`https://googleapis.com{driveFileId}?uploadType=multipart`:'https://googleapis.com';
+    form.append('file',new Blob([JSON.stringify(buildPayload())],{type:'application/json'}));
+    const url=driveFileId?`${DRIVE_UPLOAD}/${driveFileId}?uploadType=multipart`:`${DRIVE_UPLOAD}?uploadType=multipart`;
     const res=await(await driveFetch(url,{method:driveFileId?'PATCH':'POST',body:form})).json();
     if(res.id)driveFileId=res.id;
-    setSync('☁️ Synchronisiert ('+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+')',true);
-  }catch{setSync('Offline (lokal gespeichert)',false)}
+    setSync('☁️ Gespeichert ('+timeNow()+')',true);
+    maybeSnapshot();
+  }catch(e){if(e.message!=='Auth')setSync('Offline (lokal gespeichert)',false)}
 }
+
+/* ----- tägliche Sicherung (letzte 7 Tage) ----- */
+async function listSnapshots(){
+  const q=encodeURIComponent(`name contains '${SNAP_PREFIX}' and 'appDataFolder' in parents and trashed=false`);
+  const r=await(await driveFetch(`${DRIVE_API}?spaces=appDataFolder&q=${q}&orderBy=name%20desc&pageSize=50&fields=files(id,name)`)).json();
+  return(r.files||[]).filter(f=>f.name.startsWith(SNAP_PREFIX)).sort((a,b)=>b.name.localeCompare(a.name));
+}
+let snapBusy=false;
+async function maybeSnapshot(){
+  const day=today();
+  if(snapBusy||localStorage.getItem(K.SNAP)===day||!(products.length||dishes.length))return;
+  snapBusy=true;
+  try{
+    const name=`${SNAP_PREFIX}${day}.json`;
+    let snaps=await listSnapshots();
+    if(!snaps.some(f=>f.name===name)){
+      const form=new FormData();
+      form.append('metadata',new Blob([JSON.stringify({name,parents:['appDataFolder']})],{type:'application/json'}));
+      form.append('file',new Blob([JSON.stringify(buildPayload())],{type:'application/json'}));
+      await driveFetch(`${DRIVE_UPLOAD}?uploadType=multipart`,{method:'POST',body:form});
+      snaps=await listSnapshots();
+    }
+    for(const f of snaps.slice(SNAP_KEEP))await driveFetch(`${DRIVE_API}/${f.id}`,{method:'DELETE'});
+    localStorage.setItem(K.SNAP,day);
+  }catch{}
+  finally{snapBusy=false}
+}
+async function openRestore(){
+  if(!gToken){alert('Bitte zuerst mit Google verbinden (Knopf „☁️ Mit Google verbinden“).');return}
+  const list=$('restoreList');$('restoreModal').style.display='block';list.textContent='Lade …';
+  try{
+    const snaps=await listSnapshots();list.innerHTML='';
+    if(!snaps.length){list.textContent='Noch keine Sicherungen vorhanden – die erste entsteht automatisch beim nächsten Sync.';return}
+    for(const f of snaps){
+      const b=document.createElement('button');b.type='button';b.className='chip';
+      b.dataset.id=f.id;b.textContent=fmtDate(f.name.slice(SNAP_PREFIX.length,SNAP_PREFIX.length+10));list.appendChild(b);
+    }
+  }catch{list.textContent='Sicherungen konnten nicht geladen werden.'}
+}
+$('restoreBtn').onclick=openRestore;
+$('restoreCloseBtn').onclick=()=>$('restoreModal').style.display='none';
+$('restoreList').onclick=async e=>{
+  const b=e.target.closest('[data-id]');if(!b)return;
+  if(!confirm(`Alle aktuellen Daten durch den Stand vom ${b.textContent} ersetzen?`))return;
+  try{
+    const d=await(await driveFetch(`${DRIVE_API}/${b.dataset.id}?alt=media`)).json();
+    if(!Array.isArray(d.products))throw new Error('Ungültig');
+    products=d.products;dishes=d.dishes||[];dayLogs=d.dayLogs||{};favs=Array.isArray(d.favs)?d.favs:[];
+    if(d.targets)targets=Object.assign(loadTargets(),d.targets);
+    persist();$('restoreModal').style.display='none';
+  }catch{alert('Wiederherstellen fehlgeschlagen.')}
+};
 
 function saveLocal(bump=true){
   if(bump)updatedAt=Date.now();
   localStorage.setItem(K.P,JSON.stringify(products));localStorage.setItem(K.D,JSON.stringify(dishes));
-  localStorage.setItem(K.L,JSON.stringify(dayLogs));localStorage.setItem(K.G,JSON.stringify(targets));
+  localStorage.setItem(K.L,JSON.stringify(dayLogs));localStorage.setItem(K.G,JSON.stringify(targets));localStorage.setItem(K.F,JSON.stringify(favs));
   localStorage.setItem(K.UPD,String(updatedAt));
 }
 function persist(){
@@ -296,12 +431,7 @@ function calcDish(d,scale=1){
 }
 
 function ensureDayEntry(date){
-  if(!Array.isArray(dayLogs[date])){
-    const prevDates=Object.keys(dayLogs).filter(d=>d<date&&Array.isArray(dayLogs[d])&&dayLogs[d].length>0).sort();
-    const last=prevDates.pop();
-    dayLogs[date]=last?structuredClone(dayLogs[last]):[];
-    saveLocal(true);
-  }
+  if(!Array.isArray(dayLogs[date]))dayLogs[date]=[];
   return dayLogs[date];
 }
 
@@ -359,15 +489,17 @@ function renderRecommendations(date){
 }
 
 function renderPlanList(date){
-  const entries=ensureDayEntry(date),tbody=$('planList');tbody.innerHTML='';
+  const entries=dayLogs[date]||[],tbody=$('planList');tbody.innerHTML='';
   const q=$('planSearch').value.trim().toLocaleLowerCase('de'),flt=$('planFilter').value;
   const allItems=[
     ...dishes.map(d=>({type:'dish',id:d.id,name:d.name,meta:d.ingredients.map(i=>{const p=products.find(x=>x.id===i.productId);return p?`${i.amount}g ${p.name}`:''}).filter(Boolean).join(', '),defAmt:1})),
     ...products.map(p=>({type:'product',id:p.id,name:p.name,meta:`${euro(p.price)} / ${fmt(p.packSize)} g/ml`,defAmt:num(p.dailyAmount)}))
   ];
+  allItems.sort((a,b)=>Number(isFav(b.type,b.id))-Number(isFav(a.type,a.id)));
   const filtered=allItems.filter(it=>{
     const sel=entries.find(e=>e.type===it.type&&e.id===it.id);
     if(flt==='active'&&!sel)return false;
+    if(flt==='fav'&&!isFav(it.type,it.id))return false;
     if(flt==='dish'&&it.type!=='dish')return false;
     if(flt==='product'&&it.type!=='product')return false;
     return it.name.toLocaleLowerCase('de').includes(q)||it.meta.toLocaleLowerCase('de').includes(q);
@@ -378,7 +510,7 @@ function renderPlanList(date){
     const amt=sel?sel.amount:it.defAmt;
     const res=it.type==='dish'?calcDish(dishes.find(x=>x.id===it.id),amt):calcProduct(products.find(x=>x.id===it.id),amt);
     const tr=document.createElement('tr');if(sel)tr.className='active-row';
-    tr.innerHTML=`<td><input type="checkbox" style="width:18px;height:18px;cursor:pointer" data-toggle-item="${it.type}:${it.id}" ${sel?'checked':''}></td>
+    tr.innerHTML=`<td><input type="checkbox" style="width:18px;height:18px;cursor:pointer;vertical-align:middle" data-toggle-item="${it.type}:${it.id}" ${sel?'checked':''}><button type="button" class="star ${isFav(it.type,it.id)?'on':''}" data-fav="${it.type}:${it.id}" title="Favorit">${isFav(it.type,it.id)?'★':'☆'}</button></td>
       <td><span class="badge">${it.type==='dish'?'🍲 Gericht':'🥫 Produkt'}</span></td>
       <td><div class="product-name"></div><div class="product-meta"></div></td>
       <td class="num"><input type="number" min="0.1" step="any" value="${amt}" data-amt-item="${it.type}:${it.id}" style="width:85px;padding:4px 6px;text-align:right"> ${it.type==='dish'?'Port.':'g/ml'}</td>
@@ -397,7 +529,7 @@ function renderDishes(){
   for(const d of list){
     const res=calcDish(d,1),tr=document.createElement('tr');
     const ingTxt=d.ingredients.map(i=>{const p=products.find(x=>x.id===i.productId);return p?`${fmt(i.amount)} g/ml ${p.name}`:'(gelöscht)'}).join(' · ');
-    tr.innerHTML=`<td><div class="product-name"></div><div class="product-meta"></div></td><td class="num">${fmt(res.amount)} g/ml</td><td class="num">${euro(res.cost)}</td><td class="num">${res.nut.kcal==null?'—':fmt(res.nut.kcal)}</td><td class="num">${res.nut.protein==null?'—':fmt(res.nut.protein)+' g'}</td><td class="num">${res.nut.carbs==null?'—':fmt(res.nut.carbs)+' g'}</td><td class="num">${res.nut.fat==null?'—':fmt(res.nut.fat)+' g'}</td><td><div class="actions"><button class="small" data-edit-dish="${d.id}">Bearbeiten</button><button class="small danger" data-del-dish="${d.id}">Löschen</button></div></td>`;
+    tr.innerHTML=`<td><div class="product-name"></div><div class="product-meta"></div></td><td class="num">${fmt(res.amount)} g/ml</td><td class="num">${euro(res.cost)}</td><td class="num">${res.nut.kcal==null?'—':fmt(res.nut.kcal)}</td><td class="num">${res.nut.protein==null?'—':fmt(res.nut.protein)+' g'}</td><td class="num">${res.nut.carbs==null?'—':fmt(res.nut.carbs)+' g'}</td><td class="num">${res.nut.fat==null?'—':fmt(res.nut.fat)+' g'}</td><td><div class="actions"><button class="small" data-edit-dish="${d.id}">Bearbeiten</button><button class="small secondary" data-dup-dish="${d.id}">Duplizieren</button><button class="small danger" data-del-dish="${d.id}">Löschen</button></div></td>`;
     tr.querySelector('.product-name').textContent=d.name;tr.querySelector('.product-meta').textContent=ingTxt;tbody.appendChild(tr);
   }
 }
@@ -434,12 +566,12 @@ function render(){
   $('selectedDateBadge').textContent=new Date(date+'T12:00:00').toLocaleDateString('de-DE');
   renderPlanList(date);renderDishes();renderProducts();
   const sum=getDaySummary(date),monthActual=getMonthActualCost(date);
-  $('costDay').textContent=euro(sum.cost);$('costWeek').textContent=euro(sum.cost*7);
-  $('costMonthActual').textContent=euro(monthActual);$('costMonthProj').textContent=euro(sum.cost*30);
+  $('costDay').textContent=euro(sum.cost);$('costWeek').textContent=euro(avgCost(Array.from({length:7},(_,i)=>shiftDate(date,-i))));
+  $('costMonthActual').textContent=euro(monthActual);$('costMonthProj').textContent=euro(monthProjection(date));
   $('monthNameLabel').textContent=new Date(date+'T12:00:00').toLocaleDateString('de-DE',{month:'long',year:'numeric'});
   $('kcalDay').textContent=`${Math.round(sum.totals.kcal)} kcal`;$('proteinDay').textContent=`${fmt(sum.totals.protein)} g Eiweiß`;
   $('fatDay').textContent=fmt(sum.totals.fat);$('carbDay').textContent=fmt(sum.totals.carbs);$('fiberDay').textContent=fmt(sum.totals.fiber);$('sugarDay').textContent=fmt(sum.totals.sugar);
-  renderNutrients(date);renderRecommendations(date);
+  renderNutrients(date);renderRecommendations(date);renderQuickPicks(date);renderShopping();
   if($('calendarModal').style.display==='block')renderCalendar(date);
 }
 
@@ -478,7 +610,7 @@ $('planList').onchange=e=>{
 };
 
 $('recommendationArea').onclick=e=>{const b=e.target.closest('[data-uncheck-idx]');if(b){dayLogs[selectedDate()].splice(Number(b.dataset.uncheckIdx),1);persist()}};
-$('copyPrevDayBtn').onclick=()=>{const cur=selectedDate(),prev=shiftDate(cur,-1);if(!dayLogs[prev]||!dayLogs[prev].length)return alert('Für den Vortag sind keine Einträge gespeichert.');dayLogs[cur]=structuredClone(dayLogs[prev]);persist()};
+$('copyPrevDayBtn').onclick=()=>{const cur=selectedDate(),prev=shiftDate(cur,-1);if(!dayLogs[prev]||!dayLogs[prev].length)return alert('Für den Vortag sind keine Einträge gespeichert.');if((dayLogs[cur]||[]).length&&!confirm('Die Auswahl dieses Tages wird durch die des Vortags ersetzt. Fortfahren?'))return;dayLogs[cur]=structuredClone(dayLogs[prev]);persist()};
 $('selectedDate').onchange=render;
 $('prevDayBtn').onclick=()=>{$('selectedDate').value=shiftDate(selectedDate(),-1);render()};
 $('nextDayBtn').onclick=()=>{$('selectedDate').value=shiftDate(selectedDate(),1);render()};
@@ -486,18 +618,7 @@ $('toggleCalBtn').onclick=()=>{const m=$('calendarModal');m.style.display=m.styl
 $('calGrid').onclick=e=>{const c=e.target.closest('[data-pick-date]');if(c){$('selectedDate').value=c.dataset.pickDate;render()}};
 $('planSearch').oninput=$('planFilter').onchange=$('dishSearch').oninput=$('prodSearch').oninput=$('sort').onchange=render;
 
-$('nutrientOverview').onclick=e=>{
-  const b=e.target.closest('[data-edit-target]');if(!b)return;
-  const k=b.dataset.editTarget,t=targets[k],ask=(txt,def)=>{const s=prompt(txt,def);return s===null?null:Number(s.replace(',','.'))};
-  if(k==='kcal'){
-    const minV=ask('Unteres Kalorienziel (kcal):',t.min);if(minV===null)return;
-    const maxV=ask('Oberes Kalorienziel (kcal):',t.max);if(maxV===null)return;
-    if(!isNaN(minV)&&!isNaN(maxV)&&minV>=0&&maxV>=minV){t.min=minV;t.max=maxV;persist()}
-  }else{
-    const prop=t.isMax?'max':'target',v=ask(`${t.isMax?'Maximum':'Tagesziel'} für ${t.label} (${t.unit}):`,t[prop]);
-    if(v!==null&&!isNaN(v)&&v>=0){t[prop]=v;persist()}
-  }
-};
+$('nutrientOverview').onclick=e=>{const b=e.target.closest('[data-edit-target]');if(b)openGoals(b.dataset.editTarget)};
 
 $('dishForm').onsubmit=e=>{
   e.preventDefault();
@@ -511,13 +632,14 @@ $('dishForm').onsubmit=e=>{
 function resetDishForm(){editingDishId=null;$('dishForm').reset();$('dishIngredients').innerHTML='';if(products.length)addIngredientRow();$('dishFormTitle').textContent='Neues Gericht zusammenstellen';$('dishEditBanner').style.display='none';$('dishSubmitBtn').textContent='🍲 Gericht speichern';$('dishCancelBtn').style.display='none'}
 $('dishCancelBtn').onclick=resetDishForm;
 $('dishList').onclick=e=>{
-  const ed=e.target.closest('[data-edit-dish]'),del=e.target.closest('[data-del-dish]');
-  if(ed){const d=dishes.find(x=>String(x.id)===ed.dataset.editDish);if(!d)return;editingDishId=d.id;$('dishName').value=d.name;$('dishIngredients').innerHTML='';d.ingredients.forEach(i=>addIngredientRow(i.productId,i.amount));$('dishFormTitle').textContent='Gericht bearbeiten';$('dishEditBanner').style.display='block';$('dishSubmitBtn').textContent='Änderungen speichern';$('dishCancelBtn').style.display='inline-block'}
-  if(del){const d=dishes.find(x=>String(x.id)===del.dataset.delDish);if(d&&confirm(`Gericht „${d.name}“ löschen?`)){dishes=dishes.filter(x=>x.id!==d.id);persist()}}
+  const ed=e.target.closest('[data-edit-dish]'),del=e.target.closest('[data-del-dish]'),dup=e.target.closest('[data-dup-dish]');
+  if(dup){const d=dishes.find(x=>String(x.id)===dup.dataset.dupDish);if(!d)return;const copy={id:Date.now(),name:d.name+' (Kopie)',ingredients:structuredClone(d.ingredients||[])};dishes=[...dishes,copy];persist();startEditDish(copy);return}
+  if(ed){const d=dishes.find(x=>String(x.id)===ed.dataset.editDish);if(!d)return;startEditDish(d)}
+  if(del){const d=dishes.find(x=>String(x.id)===del.dataset.delDish);if(!d)return;const days=Object.keys(dayLogs).filter(x=>Array.isArray(dayLogs[x])&&dayLogs[x].some(en=>en.type==='dish'&&en.id===d.id));if(confirm(`Gericht „${d.name}“ löschen?`+(days.length?`\n\nEs ist an ${days.length} Tag(en) ausgewählt und fällt dort aus der Rechnung.`:''))){dishes=dishes.filter(x=>x.id!==d.id);persist()}}
 };
 $('productForm').onsubmit=e=>{
   e.preventDefault();
-  const p={id:editingProdId??Date.now(),name:$('name').value.trim(),price:num($('price').value),packSize:num($('packSize').value),dailyAmount:num($('dailyAmount').value)};
+  const p={id:editingProdId??Date.now(),name:$('name').value.trim(),price:num($('price').value),packSize:num($('packSize').value),dailyAmount:num($('dailyAmount').value),ean:$('ean').value.trim()};
   fields.forEach(k=>{const v=$(k).value;p[k]=v===''?null:num(v)});
   if(!p.name||p.packSize<=0||p.dailyAmount<0||p.price<0)return alert('Bitte Eingaben prüfen.');
   products=editingProdId!==null?products.map(x=>x.id===editingProdId?p:x):[...products,p];
@@ -527,104 +649,243 @@ function resetProdForm(){editingProdId=null;$('productForm').reset();$('formTitl
 $('cancelEditBtn').onclick=resetProdForm;
 $('productList').onclick=e=>{
   const ed=e.target.closest('[data-edit-prod]'),del=e.target.closest('[data-del-prod]');
-  if(ed){const p=products.find(x=>String(x.id)===ed.dataset.editProd);if(!p)return;editingProdId=p.id;for(const k of['name','price','packSize','dailyAmount',...fields])$(k).value=p[k]??'';$('formTitle').textContent='Produkt bearbeiten';$('editBanner').style.display='block';$('submitBtn').textContent='Änderungen speichern';$('cancelEditBtn').style.display='inline-block'}
-  if(del){const p=products.find(x=>String(x.id)===del.dataset.delProd);if(p&&confirm(`Produkt „${p.name}“ löschen?`)){products=products.filter(x=>x.id!==p.id);persist()}}
+  if(ed){const p=products.find(x=>String(x.id)===ed.dataset.editProd);if(!p)return;editingProdId=p.id;for(const k of['name','price','packSize','dailyAmount','ean',...fields])$(k).value=p[k]??'';$('formTitle').textContent='Produkt bearbeiten';$('editBanner').style.display='block';$('submitBtn').textContent='Änderungen speichern';$('cancelEditBtn').style.display='inline-block'}
+  if(del){const p=products.find(x=>String(x.id)===del.dataset.delProd);if(!p)return;
+    const usedIn=dishes.filter(d=>(d.ingredients||[]).some(i=>i.productId===p.id));
+    const days=Object.keys(dayLogs).filter(d=>Array.isArray(dayLogs[d])&&dayLogs[d].some(en=>en.type==='product'&&en.id===p.id));
+    let msg=`Produkt „${p.name}“ löschen?`;
+    if(usedIn.length)msg+=`\n\nAchtung: Es wird in ${usedIn.length} Gericht(en) verwendet (${usedIn.slice(0,5).map(d=>d.name).join(', ')}${usedIn.length>5?', …':''}). Dort bleibt die Zutat als „(gelöscht)“ stehen und wird nicht mehr mitgerechnet.`;
+    if(days.length)msg+=`\n\nEs ist an ${days.length} Tag(en) direkt ausgewählt und fällt dort aus der Rechnung.`;
+    if(confirm(msg)){products=products.filter(x=>x.id!==p.id);persist()}}
 };
 
-let camStream=null,ocrTimer=null,lastScanned={};
-function parseNutritionText(raw){
-  const clean=raw.replace(/,/g,'.').replace(/[oO](?=\d)/g,'0').replace(/[lI](?=\d)/g,'1').replace(/\s+/g,' ');
-  const grab=rxs=>{for(const rx of rxs){const m=clean.match(rx);if(m&&m){const v=parseFloat(m);if(!isNaN(v)&&v>=0&&v<=1000)return v}}return null};
-  return{kcal:grab([/(\d+(?:\.\d+)?)\s*kcal/i,/(?:brennwert|energie)[^\d]{0,30}(?:\d+\s*kj\s*\/?\s*)?(\d+(?:\.\d+)?)/i]),fat:grab([/fett[^\d]{0,18}(\d+(?:\.\d+)?)/i]),satFat:grab([/(?:gesättigte|davon\s+ges)[^\d]{0,25}(\d+(?:\.\d+)?)/i]),carbs:grab([/kohlenhydrate[^\d]{0,18}(\d+(?:\.\d+)?)/i]),sugar:grab([/zucker[^\d]{0,18}(\d+(?:\.\d+)?)/i]),fiber:grab([/ballaststoffe[^\d]{0,18}(\d+(?:\.\d+)?)/i]),protein:grab([/(?:eiwei[ßs]{1,2}|protein)[^\d]{0,18}(\d+(?:\.\d+)?)/i]),salt:grab([/salz[^\d]{0,18}(\d+(?:\.\d+)?)/i])};
+let camStream=null,scanTimer=null;
+function startEditProduct(p){
+  editingProdId=p.id;for(const k of['name','price','packSize','dailyAmount','ean',...fields])$(k).value=p[k]??'';
+  $('formTitle').textContent='Produkt bearbeiten';$('editBanner').style.display='block';
+  $('submitBtn').textContent='Änderungen speichern';$('cancelEditBtn').style.display='inline-block';
+  $('name').scrollIntoView({block:'center'});
 }
-async function ensureTesseract(){
-  if(typeof Tesseract!=='undefined')return true;$('ocrStatus').textContent='⏳ Lade Texterkennung…';
-  await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com}).catch(()=>{});
-  return typeof Tesseract!=='undefined';
+function stopCamera(){
+  if(scanTimer){clearInterval(scanTimer);scanTimer=null}
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}
+  $('camVideo').srcObject=null;$('cameraModal').style.display='none';
 }
-function stopCamera(){if(ocrTimer){clearInterval(ocrTimer);ocrTimer=null}if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('cameraModal').style.display='none';$('applyOcrBtn').style.display=''}
-$('closeCamBtn').onclick=stopCamera;$('fallbackPhotoBtn').onclick=()=>{stopCamera();$('ocrInput').click()};
-$('applyOcrBtn').onclick=()=>{let n=0;for(const[k,v]of Object.entries(lastScanned))if(v!==null){$(k).value=v;n++}$('ocrStatus').textContent=`✅ ${n} Werte übernommen`;stopCamera()};
+$('closeCamBtn').onclick=stopCamera;
 
-$('scanBtn').onclick=async()=>{
-  if(!(await ensureTesseract()))return $('ocrStatus').textContent='❌ Texterkennung fehlgeschlagen';
-  lastScanned={};$('applyOcrBtn').disabled=true;$('cameraModal').style.display='block';
+async function lookupBarcode(raw){
+  const ean=String(raw||'').replace(/\D/g,''),msg=$('liveOcrPreview');
+  if(ean.length<8){msg.textContent='⚠️ Bitte eine gültige Barcode-Nummer eingeben.';return false}
+  const ex=products.find(p=>String(p.ean||'')===ean);
+  if(ex){stopCamera();startEditProduct(ex);$('ocrStatus').textContent=`ℹ️ „${ex.name}“ ist schon gespeichert`;return true}
+  msg.textContent=`⏳ Suche ${ean} …`;
   try{
-    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280}},audio:false});
-    const v=$('camVideo');v.srcObject=camStream;$('liveOcrPreview').textContent='🔍 Tabelle in den grünen Rahmen halten…';
-    const c=document.createElement('canvas'),ctx=c.getContext('2d');let busy=false;
-    ocrTimer=setInterval(async()=>{
-      if(busy||!v.videoWidth)return;busy=true;
-      try{
-        c.width=v.videoWidth*.84;c.height=v.videoHeight*.76;ctx.filter='grayscale(100%) contrast(160%)';
-        ctx.drawImage(v,v.videoWidth*.08,v.videoHeight*.12,c.width,c.height,0,0,c.width,c.height);
-        const found=parseNutritionText((await Tesseract.recognize(c,'deu')).data.text);
-        const sum=NUTRIENTS.reduce((a,[k,l])=>{if(found[k]!==null)lastScanned[k]=found[k];if(lastScanned[k]!=null)a.push(`${l.split(' ')}: ${lastScanned[k]}`);return a},[]);
-        if(sum.length){$('liveOcrPreview').textContent='✅ Live: '+sum.join(' · ');$('applyOcrBtn').disabled=false}
-      }catch{}busy=false;
-    },1600);
-  }catch{stopCamera();$('ocrInput').click()}
-};
-async function fetchOpenFoodFacts(ean){
-  $('liveOcrPreview').textContent=`⏳ Suche ${ean}…`;
-  try{
-    const d=await(await fetch(`https://openfoodfacts.org{ean}.json`)).json();
-    if(d.status!==1||!d.product)return($('liveOcrPreview').textContent=`⚠️ Barcode ${ean} nicht gefunden.`,false);
-    const p=d.product,n=p.nutriments||{};
-    if(p.product_name_de||p.product_name)$('name').value=p.product_name_de||p.product_name;
-    if(p.product_quantity)$('packSize').value=parseFloat(p.product_quantity)||'';
-    const map={kcal:n['energy-kcal_100g'],fat:n.fat_100g,satFat:n['saturated-fat_100g'],carbs:n.carbohydrates_100g,sugar:n.sugars_100g,fiber:n.fiber_100g,protein:n.proteins_100g,salt:n.salt_100g};
-    let c=0;for(const[f,v]of Object.entries(map))if(v!=null&&!isNaN(v)){$(f).value=Math.round(Number(v)*10)/10;c++}
-    $('ocrStatus').textContent=`✅ ${p.product_name_de||p.product_name||ean} (${c} Werte)`;stopCamera();return true;
-  }catch{$('liveOcrPreview').textContent='❌ Offline';return false}
+    const d=await(await fetch(`https://world.openfoodfacts.org/api/v2/product/${ean}.json?fields=product_name,product_name_de,product_quantity,nutriments`)).json();
+    stopCamera();resetProdForm();$('ean').value=ean;
+    if(d.status!==1||!d.product){
+      $('ocrStatus').textContent=`⚠️ ${ean} nicht in der Datenbank – Name, Preis und Werte bitte selbst eintragen`;$('name').focus();return false;
+    }
+    const p=d.product,n=p.nutriments||{},name=p.product_name_de||p.product_name||'';
+    if(name)$('name').value=name;
+    const qty=parseFloat(p.product_quantity);if(qty>0)$('packSize').value=qty;
+    const kcal=n['energy-kcal_100g']!=null?n['energy-kcal_100g']:(n.energy_100g!=null?n.energy_100g/4.184:null);
+    const map={kcal,fat:n.fat_100g,satFat:n['saturated-fat_100g'],carbs:n.carbohydrates_100g,sugar:n.sugars_100g,fiber:n.fiber_100g,protein:n.proteins_100g,salt:n.salt_100g};
+    const missing=[];
+    for(const[k,l]of NUTRIENTS){const v=map[k];if(v!=null&&!isNaN(v))$(k).value=Math.round(Number(v)*10)/10;else missing.push(l.split(' (')[0])}
+    $('ocrStatus').textContent=`✅ ${name||ean}: ${NUTRIENTS.length-missing.length} von ${NUTRIENTS.length} Nährwerten`+(missing.length?` (fehlt: ${missing.join(', ')})`:'')+' – jetzt Preis eintragen';
+    $('price').focus();$('price').scrollIntoView({block:'center'});
+    return true;
+  }catch{msg.textContent='❌ Keine Verbindung zu Open Food Facts';return false}
 }
 $('barcodeBtn').onclick=async()=>{
-  $('applyOcrBtn').style.display='none';$('cameraModal').style.display='block';
-  const manual=async msg=>{stopCamera();const e=prompt(msg);if(e&&e.trim())await fetchOpenFoodFacts(e.trim())};
-  if(!('BarcodeDetector'in window))return manual('Bitte EAN-Nummer eingeben:');
+  $('cameraModal').style.display='block';$('eanManual').value='';
+  const wrap=$('camWrap');
+  if(!('BarcodeDetector'in window)||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    wrap.style.display='none';$('liveOcrPreview').textContent='ℹ️ Kamera-Scan wird hier nicht unterstützt – bitte Nummer eintippen.';return;
+  }
+  wrap.style.display='flex';
   try{
     const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});
-    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
-    const v=$('camVideo');v.srcObject=camStream;$('liveOcrPreview').textContent='🔍 Barcode in den Rahmen halten…';
-    let scan=false;
-    ocrTimer=setInterval(async()=>{if(scan||!v.videoWidth)return;scan=true;try{const c=await det.detect(v);if(c.length){clearInterval(ocrTimer);ocrTimer=null;await fetchOpenFoodFacts(c.rawValue)}}catch{}scan=false},500);
-  }catch{manual('Bitte EAN-Nummer eingeben:')}
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+    try{await camStream.getVideoTracks()[0].applyConstraints({advanced:[{focusMode:'continuous'}]})}catch{}
+    const v=$('camVideo');v.srcObject=camStream;$('liveOcrPreview').textContent='🔍 Barcode in den Rahmen halten …';
+    let busy=false;
+    scanTimer=setInterval(async()=>{
+      if(busy||!v.videoWidth)return;busy=true;
+      try{const codes=await det.detect(v);if(codes.length){clearInterval(scanTimer);scanTimer=null;if(navigator.vibrate)navigator.vibrate(80);await lookupBarcode(codes[0].rawValue)}}catch{}
+      busy=false;
+    },400);
+  }catch{wrap.style.display='none';$('liveOcrPreview').textContent='⚠️ Kamera nicht verfügbar (Berechtigung?) – bitte Nummer eintippen.'}
 };
-$('ocrInput').onchange=async e=>{
-  const f=e.target.files;if(!f||!(await ensureTesseract()))return;$('ocrStatus').textContent='⏳ Analysiere…';
-  try{const found=parseNutritionText((await Tesseract.recognize(f,'deu')).data.text);let c=0;for(const[k,v]of Object.entries(found))if(v!==null){$(k).value=v;c++}$('ocrStatus').textContent=c?`✅ ${c} Werte erkannt`:'⚠️ Nichts erkannt'}catch{$('ocrStatus').textContent='❌ Fehler'}e.target.value='';
-};
+$('eanManualBtn').onclick=()=>lookupBarcode($('eanManual').value);
+$('eanManual').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();lookupBarcode($('eanManual').value)}};
 
-$('gdriveBtn').onclick=()=>connectGoogleDrive(false);
-$('syncNowBtn').onclick=()=>gToken?syncWithDrive():connectGoogleDrive(false);
 const setTheme=t=>{document.documentElement.dataset.theme=t;localStorage.setItem(K.T,t);$('themeBtn').textContent=t==='dark'?'☀️ Lightmode':'🌙 Darkmode'};
 $('themeBtn').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
 setTheme(localStorage.getItem(K.T)||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));
 
 const download=(n,c,t)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
-$('exportJsonBtn').onclick=()=>download('essensplan-backup.json',JSON.stringify({version:5,updatedAt,products,dishes,dayLogs,targets},null,2),'application/json');
+$('exportJsonBtn').onclick=()=>{download('essensplan-backup.json',JSON.stringify({version:6,updatedAt,products,dishes,dayLogs,targets,favs},null,2),'application/json')};
 $('importBtn').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=async e=>{
-  const f=e.target.files;if(!f)return;
+  const f=e.target.files[0];if(!f)return;
   try{
     const d=JSON.parse(await f.text());
     if(!Array.isArray(d.products))throw new Error('Ungültiges Format');
     if(confirm(`${d.products.length} Produkte und ${(d.dishes||[]).length} Gerichte importieren?`)){
-      products=d.products;dishes=d.dishes||[];dayLogs=d.dayLogs||{};if(d.targets)targets=Object.assign(loadTargets(),d.targets);persist();
+      products=d.products;dishes=d.dishes||[];dayLogs=d.dayLogs||{};favs=Array.isArray(d.favs)?d.favs:[];if(d.targets)targets=Object.assign(loadTargets(),d.targets);persist();
     }
   }catch(err){alert('Import fehlgeschlagen: '+err.message)}e.target.value='';
 };
-$('csvBtn').onclick=()=>{
-  const h=['Typ','Name','Menge_g_ml','Kosten_EUR',...fields];
-  const rows=[
-    ...products.map(p=>{const r=calcProduct(p);return['Produkt',p.name,p.dailyAmount,r.cost,...fields.map(k=>r.nut[k]??'')]}),
-    ...dishes.map(d=>{const r=calcDish(d);return['Gericht',d.name,r.amount,r.cost,...fields.map(k=>r.nut[k]??'')]})
-  ];
-  download('essensplan.csv','\ufeff'+[h,...rows].map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(';')).join('\r\n'),'text/csv;charset=utf-8');
+/* ===== Durchschnitt & Hochrechnung ===== */
+const hasEntries=d=>Array.isArray(dayLogs[d])&&dayLogs[d].length>0;
+function avgCost(dates){const c=dates.filter(hasEntries).map(d=>getDaySummary(d).cost);return c.length?c.reduce((a,b)=>a+b,0)/c.length:0}
+function monthProjection(date){const prefix=date.slice(0,7),[y,m]=date.split('-').map(Number);return avgCost(Object.keys(dayLogs).filter(d=>d.startsWith(prefix)))*new Date(y,m,0).getDate()}
+
+/* ===== Favoriten & Zuletzt verwendet ===== */
+const isFav=(type,id)=>favs.includes(`${type}:${id}`);
+function toggleFav(key){const i=favs.indexOf(key);if(i===-1)favs.push(key);else favs.splice(i,1);persist()}
+function itemByKey(key){
+  const[type,idStr]=key.split(':'),id=Number(idStr);
+  const item=type==='dish'?dishes.find(x=>x.id===id):products.find(x=>x.id===id);
+  return item?{type,id,name:item.name,defAmt:type==='dish'?1:(num(item.dailyAmount)||1)}:null;
+}
+function renderQuickPicks(date){
+  const root=$('quickPicks');root.innerHTML='';
+  const entries=dayLogs[date]||[],favKeys=new Set(favs),recent=[];
+  for(const d of Object.keys(dayLogs).sort().reverse()){
+    for(const e of(Array.isArray(dayLogs[d])?dayLogs[d]:[])){
+      const key=`${e.type}:${e.id}`;
+      if(favKeys.has(key)||recent.includes(key)||!itemByKey(key))continue;
+      recent.push(key);if(recent.length>=8)break;
+    }
+    if(recent.length>=8)break;
+  }
+  const mk=(label,items)=>{
+    if(!items.length)return;
+    const t=document.createElement('div');t.className='chip-label';t.textContent=label;
+    const w=document.createElement('div');w.className='chips';
+    for(const it of items){
+      const sel=entries.some(e=>e.type===it.type&&e.id===it.id),b=document.createElement('button');
+      b.type='button';b.className='chip'+(sel?' on':'');b.dataset.chip=`${it.type}:${it.id}`;
+      b.textContent=(sel?'✓ ':'')+(it.type==='dish'?'🍲 ':'🥫 ')+it.name;w.appendChild(b);
+    }
+    root.appendChild(t);root.appendChild(w);
+  };
+  mk('⭐ Favoriten (Klick = hinzufügen / entfernen)',favs.map(itemByKey).filter(Boolean));
+  mk('🕘 Zuletzt verwendet',recent.map(itemByKey));
+}
+$('planList').onclick=e=>{const b=e.target.closest('[data-fav]');if(b)toggleFav(b.dataset.fav)};
+$('quickPicks').onclick=e=>{
+  const b=e.target.closest('[data-chip]');if(!b)return;
+  const it=itemByKey(b.dataset.chip);if(!it)return;
+  const entries=ensureDayEntry(selectedDate()),idx=entries.findIndex(x=>x.type===it.type&&x.id===it.id);
+  if(idx===-1)entries.push({type:it.type,id:it.id,amount:it.defAmt});else entries.splice(idx,1);
+  persist();
+};
+
+/* ===== Gericht bearbeiten (auch für „Duplizieren“) ===== */
+function startEditDish(d){
+  editingDishId=d.id;$('dishName').value=d.name;$('dishIngredients').innerHTML='';
+  (d.ingredients||[]).forEach(i=>addIngredientRow(i.productId,i.amount));
+  $('dishFormTitle').textContent='Gericht bearbeiten';$('dishEditBanner').style.display='block';
+  $('dishSubmitBtn').textContent='Änderungen speichern';$('dishCancelBtn').style.display='inline-block';
+  $('dishName').scrollIntoView({block:'center'});$('dishName').focus();$('dishName').select();
+}
+
+/* ===== Ziele per Formular ===== */
+function renderGoalsForm(){
+  $('goalsFields').innerHTML=Object.entries(targets).map(([k,t])=>{
+    if(k==='kcal')return `<div class="form-group"><label for="g_kcal_min">Kalorien – unteres Ziel (kcal)</label><input type="number" id="g_kcal_min" min="0" step="any" required value="${t.min}"></div><div class="form-group"><label for="g_kcal_max">Kalorien – oberes Ziel (kcal)</label><input type="number" id="g_kcal_max" min="0" step="any" required value="${t.max}"></div>`;
+    return `<div class="form-group"><label for="g_${k}">${t.label} – ${t.isMax?'Maximum':'Tagesziel'} (${t.unit})</label><input type="number" id="g_${k}" min="0" step="any" required value="${t.isMax?t.max:t.target}"></div>`;
+  }).join('');
+}
+function openGoals(k){
+  renderGoalsForm();const m=$('goalsModal');m.style.display='block';
+  const f=$(!k||k==='kcal'?'g_kcal_min':'g_'+k);m.scrollIntoView({block:'nearest',behavior:'smooth'});if(f)f.focus();
+}
+$('goalsBtn').onclick=()=>{$('goalsModal').style.display==='block'?$('goalsModal').style.display='none':openGoals()};
+$('goalsCloseBtn').onclick=()=>$('goalsModal').style.display='none';
+$('goalsForm').onsubmit=e=>{
+  e.preventDefault();
+  const v=id=>Number(String($(id).value).replace(',','.'));
+  const kmin=v('g_kcal_min'),kmax=v('g_kcal_max');
+  if(!(kmin>=0&&kmax>=kmin))return alert('Bitte prüfen: Das obere Kalorienziel muss mindestens so groß sein wie das untere.');
+  const next=structuredClone(targets);next.kcal.min=kmin;next.kcal.max=kmax;
+  for(const[k,t]of Object.entries(next)){
+    if(k==='kcal')continue;
+    const x=v('g_'+k);if(isNaN(x)||x<0)return alert('Bitte prüfen: '+t.label);
+    t[t.isMax?'max':'target']=x;
+  }
+  targets=next;persist();$('goalsModal').style.display='none';
+};
+$('goalsResetBtn').onclick=()=>{if(confirm('Alle Ziele auf die Standardwerte zurücksetzen?')){targets=structuredClone(defaultTargets);persist();renderGoalsForm()}};
+
+/* ===== Einkaufsliste ===== */
+const fmtDate=ds=>new Date(ds+'T12:00:00').toLocaleDateString('de-DE');
+function shopRange(){
+  let from=$('shopFrom').value,to=$('shopTo').value;
+  if(!from||!to)return[];
+  if(from>to){const t=from;from=to;to=t}
+  const out=[];let d=from;
+  for(let i=0;i<366&&d<=to;i++){out.push(d);d=shiftDate(d,1)}
+  return out;
+}
+function computeShopping(){
+  const need=new Map(),add=(p,a)=>need.set(p.id,(need.get(p.id)||0)+a),dates=shopRange();let daysWith=0;
+  for(const date of dates){
+    const entries=dayLogs[date];if(!Array.isArray(entries)||!entries.length)continue;daysWith++;
+    for(const e of entries){
+      if(e.type==='product'){const p=products.find(x=>x.id===e.id);if(p)add(p,num(e.amount))}
+      else if(e.type==='dish'){
+        const d=dishes.find(x=>x.id===e.id);if(!d)continue;
+        for(const ing of(d.ingredients||[])){const p=products.find(x=>x.id===ing.productId);if(p)add(p,num(ing.amount)*num(e.amount))}
+      }
+    }
+  }
+  const rows=[...need.entries()].map(([id,total])=>{
+    const p=products.find(x=>x.id===id),size=Math.max(num(p.packSize),1e-6),packs=Math.ceil(total/size-1e-9);
+    return{p,total,packs,packCost:packs*num(p.price),partCost:num(p.price)/size*total};
+  }).sort((a,b)=>a.p.name.localeCompare(b.p.name,'de'));
+  return{rows,daysWith,dayCount:dates.length};
+}
+function renderShopping(){
+  if(!$('shopFrom').value){const d=selectedDate();$('shopFrom').value=d;$('shopTo').value=shiftDate(d,6)}
+  const{rows,daysWith,dayCount}=computeShopping(),tb=$('shopList');tb.innerHTML='';
+  $('shopSummary').textContent=dayCount?`${dayCount} Tage im Zeitraum, davon ${daysWith} mit Einträgen.`:'Bitte einen Zeitraum wählen.';
+  if(!rows.length){tb.innerHTML='<tr><td colspan="6" class="empty">Im gewählten Zeitraum sind keine Gerichte oder Produkte ausgewählt.</td></tr>';return}
+  let sumPack=0,sumPart=0;
+  for(const r of rows){
+    sumPack+=r.packCost;sumPart+=r.partCost;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="product-name"></td><td class="num">${fmt(r.total)}</td><td class="num">${r.packs} × ${fmt(r.p.packSize)}</td><td class="num">${euro(r.p.price)}</td><td class="num">${euro(r.packCost)}</td><td class="num">${euro(r.partCost)}</td>`;
+    tr.firstChild.textContent=r.p.name;tb.appendChild(tr);
+  }
+  const sr=document.createElement('tr');sr.className='sum-row';
+  sr.innerHTML=`<td>Summe</td><td></td><td></td><td></td><td class="num">${euro(sumPack)}</td><td class="num">${euro(sumPart)}</td>`;tb.appendChild(sr);
+}
+$('shopFrom').onchange=$('shopTo').onchange=renderShopping;
+$('shopDayBtn').onclick=()=>{const d=selectedDate();$('shopFrom').value=d;$('shopTo').value=d;renderShopping()};
+$('shopWeekBtn').onclick=()=>{const d=selectedDate();$('shopFrom').value=d;$('shopTo').value=shiftDate(d,6);renderShopping()};
+$('shopMonthBtn').onclick=()=>{
+  const[y,m]=selectedDate().split('-').map(Number),mm=String(m).padStart(2,'0');
+  $('shopFrom').value=`${y}-${mm}-01`;$('shopTo').value=`${y}-${mm}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;renderShopping();
+};
+$('shopCopyBtn').onclick=async()=>{
+  const{rows}=computeShopping();if(!rows.length)return alert('Die Einkaufsliste ist leer.');
+  const txt=`Einkaufsliste ${fmtDate($('shopFrom').value)} – ${fmtDate($('shopTo').value)}\n`+
+    rows.map(r=>`- ${r.packs}× ${r.p.name} (${fmt(r.p.packSize)} g/ml) – Bedarf ${fmt(r.total)} g/ml – ${euro(r.packCost)}`).join('\n')+
+    `\nSumme: ${euro(rows.reduce((a,r)=>a+r.packCost,0))}`;
+  try{await navigator.clipboard.writeText(txt);$('shopSummary').textContent+=' ✅ In die Zwischenablage kopiert.'}
+  catch{download('einkaufsliste.txt',txt,'text/plain;charset=utf-8')}
 };
 
 $('selectedDate').value=today();
 render();
+if(!products.length)document.querySelector('[data-tab="tabProducts"]').click();
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+document.querySelector('details.menu').addEventListener('click',e=>{if(e.target.closest('button'))e.currentTarget.open=false});
+autoConnect();
 </script>
 </body>
 </html>
